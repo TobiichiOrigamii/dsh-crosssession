@@ -26,13 +26,29 @@
 
 ## 安装
 
-### 从插件市场（发布后）
+### 从 GitHub 仓库安装（无需 npm 包）
 
-```bash
-dsh plugin install dsh-crosssession
+DSH 插件管理器支持直接从 Git 地址安装。打开 **插件市场 → 添加插件**，填入：
+
+```
+https://github.com/TobiichiOrigamii/dsh-crosssession
 ```
 
-或在 DSH 的插件市场中搜索 `dsh-crosssession` 安装，然后在配置里启用。
+或命令行：
+
+```bash
+dsh plugin add https://github.com/TobiichiOrigamii/dsh-crosssession
+```
+
+> 安装后暂不支持自动更新：升级时先卸载再安装新版。插件以你的本机权限运行，请只安装可信来源。
+
+### 从 npm 安装（npm 包发布后）
+
+```bash
+dsh plugin add dsh-crosssession
+```
+
+或在插件市场搜索 `dsh-crosssession` 安装。
 
 ### 本地开发加载（file://）
 
