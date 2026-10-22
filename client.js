@@ -16,7 +16,13 @@ window.__ModuleLoader__.load({
     const OPEN_ONCE_KEY = 'dsh-crosssession.right-sidebar-opened-v3';
 
     /** Cached member names for the `@` mention source (alias + title). */
-    const mentions = { members: [], aliases: [] };
+    const mentions = { members: [], aliases: [], bySession: {}, listeners: new Set() };
+
+    function notifyMentionListeners() {
+      for (const listener of mentions.listeners) {
+        try { listener(); } catch { /* ignore */ }
+      }
+    }
 
     function refreshMentions() {
       return fetch(MENTIONS_PATH, { cache: 'no-store' })
@@ -27,8 +33,69 @@ window.__ModuleLoader__.load({
           mentions.aliases = list
             .map((member) => member.alias)
             .filter((alias) => typeof alias === 'string' && alias.length > 0);
+          const bySession = {};
+          for (const member of list) {
+            if (member && typeof member.sessionId === 'string' && typeof member.alias === 'string' && member.alias) {
+              bySession[member.sessionId] = member.alias;
+            }
+          }
+          mentions.bySession = bySession;
+          notifyMentionListeners();
         })
         .catch(() => { /* keep the previous cache */ });
+    }
+
+    /** Subscribe a component to the cached session->alias map. */
+    function useMemberAlias(sessionId) {
+      const [alias, setAlias] = react.useState(() => mentions.bySession[sessionId]);
+      react.useEffect(() => {
+        const sync = () => setAlias(mentions.bySession[sessionId]);
+        sync();
+        mentions.listeners.add(sync);
+        return () => { mentions.listeners.delete(sync); };
+      }, [sessionId]);
+      return alias;
+    }
+
+    /** Left-sidebar session row decoration: `@alias` chip for sessions bound as hub members. */
+    function SessionAliasBadge(props) {
+      const alias = useMemberAlias(props?.sessionId);
+      if (!alias) return null;
+      return h('span', {
+        className: 'dsh-crosssession-session-alias',
+        title: 'dsh-crosssession 别名：@' + alias,
+        style: {
+          display: 'inline-flex',
+          alignItems: 'center',
+          flex: 'none',
+          maxWidth: '76px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          marginRight: '4px',
+          padding: '0 5px',
+          borderRadius: '999px',
+          border: '1px solid var(--dsw-alias-border-l1, rgba(127,127,127,.3))',
+          color: 'var(--dsw-alias-label-tertiary, #9aa1ab)',
+          fontSize: '10px',
+          fontWeight: 600,
+          lineHeight: '14px',
+        },
+      }, '@' + alias);
+    }
+
+    /** Register the sidebar row decoration slot so aliases are visible in the session list. */
+    function registerSessionAliasSlot(ctx) {
+      try {
+        return ctx.effect(() => ctx.slots.register({
+          name: 'sidebar.session.row.leading',
+          id: 'dsh-crosssession-alias',
+          order: 20,
+        }, SessionAliasBadge), 'dsh-crosssession: sidebar alias badge');
+      } catch (error) {
+        ctx.logger?.warn?.('dsh-crosssession client: could not register sidebar alias slot: ' + String(error?.message || error));
+        return undefined;
+      }
     }
 
     /** Register the `@` source so members show up as candidates and render as editable chips. */
@@ -158,6 +225,7 @@ window.__ModuleLoader__.load({
       BoardTab.ctx = ctx;
 
       registerMentionSource(ctx);
+      registerSessionAliasSlot(ctx);
       ctx.effect(() => {
         void refreshMentions();
         const timer = window.setInterval(() => { void refreshMentions(); }, 30_000);
