@@ -218,6 +218,75 @@ window.__ModuleLoader__.load({
       return h('span', null, '任务板');
     }
 
+    const ALIAS_ATTR = 'data-dsh-crosssession-alias';
+
+    /** Paint `@alias` badges to the right of sidebar session titles (DOM augmentation). */
+    function installSidebarAliasBadges() {
+      if (typeof document === 'undefined' || typeof MutationObserver !== 'function') return undefined;
+      const style = document.createElement('style');
+      style.setAttribute('data-dsh-crosssession-style', '');
+      style.textContent = '[' + ALIAS_ATTR + ']{display:inline-flex;align-items:center;flex:none;max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:4px;padding:0 5px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.3));color:var(--dsw-alias-label-tertiary,#9aa1ab);font-size:10px;font-weight:600;line-height:14px;pointer-events:none;}';
+      document.head.appendChild(style);
+
+      let frame = 0;
+      let painting = false;
+      const paint = () => {
+        if (painting) return;
+        painting = true;
+        try {
+          for (const row of document.querySelectorAll('[data-row-key^="session:"]')) {
+            const sessionId = String(row.getAttribute('data-row-key') || '').slice('session:'.length);
+            const alias = mentions.bySession[sessionId];
+            const existing = row.querySelector('[' + ALIAS_ATTR + ']');
+            if (!alias) {
+              if (existing) existing.remove();
+              continue;
+            }
+            let titleEl = null;
+            for (const child of row.children) {
+              if (child.hasAttribute(ALIAS_ATTR)) continue;
+              if (String(child.className || '').includes('title')) { titleEl = child; break; }
+            }
+            if (!titleEl) continue;
+            if (existing) {
+              if (existing.previousElementSibling !== titleEl) titleEl.insertAdjacentElement('afterend', existing);
+              if (existing.textContent !== '@' + alias) existing.textContent = '@' + alias;
+              continue;
+            }
+            const badge = document.createElement('span');
+            badge.setAttribute(ALIAS_ATTR, '');
+            badge.textContent = '@' + alias;
+            badge.title = 'dsh-crosssession 别名：@' + alias;
+            titleEl.insertAdjacentElement('afterend', badge);
+          }
+        } finally {
+          painting = false;
+        }
+      };
+      const schedule = () => {
+        if (frame) return;
+        frame = window.requestAnimationFrame(() => {
+          frame = 0;
+          paint();
+        });
+      };
+      const observer = new MutationObserver((mutations) => {
+        const onlyOurs = mutations.every((mutation) => [...mutation.addedNodes, ...mutation.removedNodes]
+          .every((node) => node.nodeType === 1 && node.hasAttribute(ALIAS_ATTR)));
+        if (!onlyOurs) schedule();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      mentions.listeners.add(paint);
+      paint();
+      return () => {
+        observer.disconnect();
+        mentions.listeners.delete(paint);
+        if (frame) window.cancelAnimationFrame(frame);
+        style.remove();
+        document.querySelectorAll('[' + ALIAS_ATTR + ']').forEach((node) => node.remove());
+      };
+    }
+
     const inject = ['sidebarRight', 'sidebarRightTabs', 'slots', 'sessions', 'inputTriggers'];
 
     function apply(ctx) {
@@ -225,6 +294,7 @@ window.__ModuleLoader__.load({
       BoardTab.ctx = ctx;
 
       registerMentionSource(ctx);
+      ctx.effect(() => installSidebarAliasBadges(), 'dsh-crosssession: sidebar alias badges');
       ctx.effect(() => {
         void refreshMentions();
         const timer = window.setInterval(() => { void refreshMentions(); }, 30_000);

@@ -179,16 +179,6 @@ export function apply(ctx, config = {}) {
     timer.unref?.();
     return () => clearInterval(timer);
   }, 'dsh-crosssession.maintenance');
-  // One-shot startup sync: aliases bound in a previous run get their @alias title prefix back.
-  ctx.effect(() => {
-    const timer = setTimeout(() => {
-      for (const [alias, sessionId] of Object.entries(state.aliases).slice(0, 20)) {
-        void syncAliasTitle(sessionId, alias);
-      }
-    }, 4000);
-    timer.unref?.();
-    return () => clearTimeout(timer);
-  }, 'dsh-crosssession.alias-titles');
 
   function nextSeq() {
     state.seq += 1;
@@ -1132,7 +1122,6 @@ export function apply(ctx, config = {}) {
           if (alias) delete state.aliases[alias];
           if (state.members[resolved.sessionId]) delete state.members[resolved.sessionId].alias;
           saveStateSoon();
-          await syncAliasTitle(resolved.sessionId, undefined);
           return { text: `alias cleared for ${resolved.sessionId}`, sessionId: resolved.sessionId };
         }
         const alias = assertText(String(args.alias ?? ''), 'alias');
@@ -1142,7 +1131,6 @@ export function apply(ctx, config = {}) {
         state.aliases[alias] = resolved.sessionId;
         memberEntry(resolved.sessionId, { alias });
         saveStateNow();
-        await syncAliasTitle(resolved.sessionId, alias);
         return { text: `@${alias} → ${resolved.sessionId}`, sessionId: resolved.sessionId, alias };
       },
     },
