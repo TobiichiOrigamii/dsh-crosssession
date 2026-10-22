@@ -1909,12 +1909,37 @@ tick();setInterval(tick,2000);
             path: '/dsh-crosssession/mentions.json',
             handler: (req, res) => {
               if (!boardRequestAllowed(req)) return sendRes(res, 403, 'text/plain; charset=utf-8', 'forbidden');
-              const members = Object.entries(state.members).map(([sessionId, member]) => ({
-                sessionId,
-                alias: member.alias || Object.entries(state.aliases).find(([, id]) => id === sessionId)?.[0],
-                title: sessionTitleCache.get(sessionId) || undefined,
-              })).filter((member) => member.alias || member.title);
-              return sendRes(res, 200, 'application/json; charset=utf-8', JSON.stringify({ members }));
+              void (async () => {
+                // Every mention request re-validates the roster: sessions deleted since
+                // the previous call are removed from members and aliases first.
+                let live = null;
+                try {
+                  const listed = await ctx.sessionController.list(undefined, undefined);
+                  const items = Array.isArray(listed) ? listed : (Array.isArray(listed?.items) ? listed.items : []);
+                  live = new Set(items.map((item) => item.sessionId));
+                } catch (error) {
+                  ctx.logger?.info?.(`dsh-crosssession: mention roster validation skipped: ${safeErrorText(error)}`);
+                }
+                if (live !== null) {
+                  let removed = 0;
+                  for (const sessionId of Object.keys(state.members)) {
+                    if (!live.has(sessionId)) { delete state.members[sessionId]; removed += 1; }
+                  }
+                  for (const [alias, sessionId] of Object.entries(state.aliases)) {
+                    if (!live.has(sessionId)) { delete state.aliases[alias]; removed += 1; }
+                  }
+                  if (removed > 0) {
+                    saveStateNow();
+                    ctx.logger?.info?.(`dsh-crosssession: dropped ${removed} stale roster entr${removed === 1 ? 'y' : 'ies'}`);
+                  }
+                }
+                const members = Object.entries(state.members).map(([sessionId, member]) => ({
+                  sessionId,
+                  alias: member.alias || Object.entries(state.aliases).find(([, id]) => id === sessionId)?.[0],
+                  title: sessionTitleCache.get(sessionId) || member.title || undefined,
+                })).filter((member) => member.alias || member.title);
+                return sendRes(res, 200, 'application/json; charset=utf-8', JSON.stringify({ members }));
+              })().catch((error) => sendRes(res, 500, 'application/json; charset=utf-8', JSON.stringify({ error: String(error?.message || error) })));
             },
           }));
         } catch (error) {
@@ -1941,6 +1966,7 @@ tick();setInterval(tick,2000);
 
   ctx.logger?.info?.('dsh-crosssession: loaded (cross-session messaging + persistent task board + web board + standalone board origin)');
 }
+
 
 
 
