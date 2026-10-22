@@ -1,0 +1,9 @@
+node_modules/
+*.log
+*.bak
+*.bak-*
+state.json
+policy.json
+state.json.corrupt-*
+.DS_Store
+Thumbs.db

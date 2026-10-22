@@ -1,0 +1,53 @@
+{
+  "name": "dsh-session-hub",
+  "version": "0.1.0",
+  "description": "Cross-session / cross-workspace messaging, persistent session team, approval gates and a per-session task board for DeepSeek Harness (DSH).",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "engines": {
+      "dsh": ">=0.2.0"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "board.html",
+    "policy.example.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "multi-agent",
+    "agent-team",
+    "task-board",
+    "session"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-github-name/dsh-session-hub.git"
+  },
+  "homepage": "https://github.com/your-github-name/dsh-session-hub#readme",
+  "bugs": {
+    "url": "https://github.com/your-github-name/dsh-session-hub/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

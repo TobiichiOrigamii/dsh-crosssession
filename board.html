@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Session Hub · 任务板</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --panel: #f7f8fa;
+  --panel-2: #eef1f5;
+  --border: #e5e8ec;
+  --border-strong: #d3d8de;
+  --text: #1f2328;
+  --sub: #5f6b7a;
+  --muted: #98a1ad;
+  --accent: #2563eb;
+  --accent-weak: rgba(37, 99, 235, .1);
+  --green: #15803d;
+  --green-weak: rgba(21, 128, 61, .12);
+  --amber: #b45309;
+  --amber-weak: rgba(180, 83, 9, .13);
+  --red: #dc2626;
+  --red-weak: rgba(220, 38, 38, .1);
+  --purple: #6d28d9;
+  --purple-weak: rgba(109, 40, 217, .1);
+  --radius: 8px;
+  --dur: 160ms;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  --mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181d;
+    --panel: #1e2127;
+    --panel-2: #262a31;
+    --border: #2e333b;
+    --border-strong: #3d434d;
+    --text: #e8eaed;
+    --sub: #a7aeb9;
+    --muted: #6f7783;
+    --accent: #6ea8fe;
+    --accent-weak: rgba(110, 168, 254, .16);
+    --green: #4ade80;
+    --green-weak: rgba(74, 222, 128, .15);
+    --amber: #fbbf24;
+    --amber-weak: rgba(251, 191, 36, .15);
+    --red: #f87171;
+    --red-weak: rgba(248, 113, 113, .15);
+    --purple: #c4b5fd;
+    --purple-weak: rgba(196, 181, 253, .15);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 12.5px/1.55 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+header {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.live {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green); flex: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);
+}
+.title { font-size: 13px; font-weight: 650; letter-spacing: .01em; }
+.counts { margin-left: auto; display: flex; align-items: center; gap: 10px; color: var(--sub); font-size: 11px; white-space: nowrap; }
+.count b { color: var(--text); font-weight: 650; }
+.icon-btn {
+  appearance: none; display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--panel); color: var(--sub); cursor: pointer;
+  font-size: 11px; line-height: 18px;
+  transition: background var(--dur) ease, color var(--dur) ease, border-color var(--dur) ease;
+}
+.icon-btn:hover { background: var(--panel-2); color: var(--text); border-color: var(--border-strong); }
+.icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.icon-btn svg { width: 12px; height: 12px; }
+main { padding: 4px 12px 28px; }
+section { margin-top: 6px; }
+.sec-head {
+  appearance: none; width: 100%;
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 6px; margin: 0;
+  border: 0; border-radius: 6px; background: transparent;
+  cursor: pointer; text-align: left;
+  transition: background var(--dur) ease;
+}
+.sec-head:hover { background: var(--panel); }
+.sec-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sec-title {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted);
+}
+.sec-count {
+  min-width: 17px; height: 17px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: var(--panel-2); color: var(--sub);
+  font-size: 10px; font-weight: 650;
+}
+.sec-head .chev { margin-left: auto; color: var(--muted); transition: transform var(--dur) ease; display: inline-flex; }
+.sec-head[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+.sec-head svg { width: 13px; height: 13px; }
+.sec-body { padding: 2px 0; }
+.sec-body[hidden] { display: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  max-width: 100%; padding: 3px 9px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--panel); font-size: 11.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chip .st { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--muted); }
+.chip .st.running { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+.chip .st.idle { background: var(--green); }
+.chip .alias { color: var(--muted); font-size: 10.5px; }
+.menu {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  padding: 3px; margin: 0 0 8px;
+  border: 1px solid var(--border); border-radius: calc(var(--radius) + 2px);
+  background: var(--panel);
+}
+.menu-btn {
+  appearance: none; flex: 1 1 auto; min-width: 0;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 4px 9px; border: 0; border-radius: var(--radius);
+  background: transparent; color: var(--sub);
+  font-size: 11px; font-weight: 600; line-height: 18px;
+  cursor: pointer; white-space: nowrap;
+  transition: background var(--dur) ease, color var(--dur) ease;
+}
+.menu-btn:hover { background: var(--panel-2); color: var(--text); }
+.menu-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.menu-btn[aria-pressed="true"] {
+  background: var(--bg); color: var(--text);
+  box-shadow: 0 0 0 1px var(--border-strong), 0 1px 2px rgba(0, 0, 0, .06);
+}
+.menu-btn .n { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.menu-btn[aria-pressed="true"] .n { color: var(--accent); }
+.task {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 7px 10px;
+  margin-bottom: 6px;
+}
+.task.awaiting-approval, .task.queued { border-left-color: var(--purple); }
+.task.running, .task.sending { border-left-color: var(--accent); }
+.task.blocked { border-left-color: var(--amber); }
+.task.done { border-left-color: var(--green); }
+.task.failed, .task.cancelled, .task.rejected { border-left-color: var(--red); }
+.task .head { display: flex; align-items: flex-start; gap: 6px; }
+.task .name { flex: 1; min-width: 0; font-weight: 650; font-size: 12.5px; word-break: break-word; }
+.pill {
+  flex: none; padding: 1px 7px; border-radius: 999px;
+  font-size: 10px; font-weight: 650;
+  background: var(--panel-2); color: var(--sub);
+  border: 1px solid var(--border); white-space: nowrap;
+}
+.pill.done { color: var(--green); background: var(--green-weak); border-color: transparent; }
+.pill.running, .pill.sending { color: var(--accent); background: var(--accent-weak); border-color: transparent; }
+.pill.blocked { color: var(--amber); background: var(--amber-weak); border-color: transparent; }
+.pill.failed, .pill.cancelled, .pill.rejected { color: var(--red); background: var(--red-weak); border-color: transparent; }
+.pill.queued, .pill.awaiting-approval { color: var(--purple); background: var(--purple-weak); border-color: transparent; }
+.route { color: var(--sub); font-size: 11px; margin-top: 2px; word-break: break-word; }
+.result { color: var(--sub); font-size: 11px; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
+.meta { color: var(--muted); font-size: 10.5px; margin-top: 4px; font-family: var(--mono); }
+.fold {
+  appearance: none; display: flex; align-items: center; gap: 6px;
+  width: 100%; margin: 2px 0 8px; padding: 6px 9px;
+  border: 1px dashed var(--border); border-radius: var(--radius);
+  background: transparent; color: var(--sub);
+  font-size: 11.5px; cursor: pointer;
+  transition: background var(--dur) ease, color var(--dur) ease, border-color var(--dur) ease;
+}
+.fold:hover { background: var(--panel); color: var(--text); border-color: var(--border-strong); }
+.fold:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fold .n { color: var(--muted); }
+.fold .chev { margin-left: auto; display: inline-flex; color: var(--muted); transition: transform var(--dur) ease; }
+.fold[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.fold svg { width: 12px; height: 12px; }
+.msg { display: flex; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.msg:last-child { border-bottom: 0; }
+.avatar {
+  flex: none; width: 22px; height: 22px; border-radius: 50%; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff; background: var(--accent);
+}
+.msg.auto .avatar { background: var(--muted); }
+.msg-body { flex: 1; min-width: 0; }
+.msg-top { display: flex; align-items: baseline; gap: 6px; }
+.who { font-size: 12px; font-weight: 650; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.arrow { color: var(--muted); font-size: 10.5px; flex: none; }
+.to { font-size: 11.5px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.msg-time { margin-left: auto; color: var(--muted); font-size: 10px; white-space: nowrap; font-family: var(--mono); }
+.kind {
+  flex: none; padding: 0 6px; border-radius: 999px;
+  font-size: 9.5px; font-weight: 700;
+  background: var(--panel-2); color: var(--sub); border: 1px solid var(--border);
+}
+.kind.task { color: var(--purple); background: var(--purple-weak); border-color: transparent; }
+.kind.result { color: var(--green); background: var(--green-weak); border-color: transparent; }
+.kind.question { color: var(--amber); background: var(--amber-weak); border-color: transparent; }
+.text {
+  margin: 4px 0 0; padding: 6px 9px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  font-size: 12px; line-height: 1.55; white-space: pre-wrap; word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  cursor: pointer; transition: background var(--dur) ease, border-color var(--dur) ease;
+}
+.text:hover { background: var(--panel-2); border-color: var(--border-strong); }
+.text.expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.text:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.text .more { color: var(--muted); font-size: 10.5px; }
+.msg.auto .text { border-style: dashed; color: var(--sub); }
+.empty { color: var(--muted); font-size: 11.5px; padding: 2px 0 6px; }
+.err { color: var(--red); font-size: 11px; padding: 8px 12px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (max-width: 420px) {
+  .menu { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .menu::-webkit-scrollbar { display: none; }
+  .menu-btn { flex: 0 0 auto; }
+}
+</style>
+</head>
+<body>
+<header>
+  <span class="live" aria-hidden="true"></span>
+  <span class="title">Session Hub</span>
+  <span class="counts">
+    <span class="count">成员 <b id="c-members">0</b></span>
+    <span class="count">任务 <b id="c-tasks">0</b></span>
+    <span class="count" id="c-time">--:--</span>
+  </span>
+  <button type="button" class="icon-btn" id="collapse-all" aria-label="折叠或展开全部区域">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 6h10M3 10h10"/></svg>
+    <span id="collapse-all-label">折叠</span>
+  </button>
+</header>
+<main>
+  <div class="err" id="err" hidden></div>
+
+  <section>
+    <button type="button" class="sec-head" data-sec="members" aria-expanded="true">
+      <span class="sec-title">成员</span>
+      <span class="sec-count" id="n-members">0</span>
+      <span class="chev" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6.5 8 10l4-3.5"/></svg></span>
+    </button>
+    <div class="sec-body" id="sec-members">
+      <div class="chips" id="members"></div>
+    </div>
+  </section>
+
+  <section>
+    <button type="button" class="sec-head" data-sec="tasks" aria-expanded="true">
+      <span class="sec-title">任务</span>
+      <span class="sec-count" id="n-tasks">0</span>
+      <span class="chev" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6.5 8 10l4-3.5"/></svg></span>
+    </button>
+    <div class="sec-body" id="sec-tasks">
+      <div class="menu" id="menu" role="group" aria-label="任务筛选"></div>
+      <div id="tasks"></div>
+    </div>
+  </section>
+
+  <section>
+    <button type="button" class="sec-head" data-sec="messages" aria-expanded="true">
+      <span class="sec-title">最近消息</span>
+      <span class="sec-count" id="n-messages">0</span>
+      <span class="chev" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6.5 8 10l4-3.5"/></svg></span>
+    </button>
+    <div class="sec-body" id="sec-messages">
+      <div id="messages"></div>
+    </div>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var STORE_KEY = 'dsh-session-hub-board-view-v2';
+  var TASK_LIMIT = 5;
+  var MSG_LIMIT = 10;
+  // 只显示“本会话参与的”数据：client 插件通过 ?session=<id> 传入当前会话
+  var sessionParam = new URLSearchParams(location.search).get('session') || '';
+  var snapshotPath = (location.pathname === '/board' ? '/snapshot' : '/session-hub/snapshot')
+    + (sessionParam ? '?session=' + encodeURIComponent(sessionParam) : '');
+  var FILTERS = [
+    { id: 'all', label: '全部' },
+    { id: 'active', label: '进行中' },
+    { id: 'queued', label: '排队' },
+    { id: 'awaiting-approval', label: '待批准' },
+    { id: 'blocked', label: '阻塞' },
+    { id: 'failed', label: '失败' },
+  ];
+  var statusLabel = {
+    'awaiting-approval': '待批准', queued: '排队', sending: '发送中', running: '进行中',
+    pending: '待处理', blocked: '阻塞', done: '完成', failed: '失败', cancelled: '取消', rejected: '拒绝'
+  };
+  var kindLabel = { task: '任务', result: '结果', question: '问题', note: '消息' };
+
+  var view = {
+    sections: { members: true, tasks: true, messages: true },
+    filter: 'all',
+    tasksExpanded: false,
+    doneOpen: false,
+    messagesExpanded: false,
+    expandedText: {},
+  };
+  try {
+    var saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+    if (saved && typeof saved === 'object') {
+      if (saved.sections && typeof saved.sections === 'object') {
+        view.sections = {
+          members: saved.sections.members !== false,
+          tasks: saved.sections.tasks !== false,
+          messages: saved.sections.messages !== false,
+        };
+      }
+      if (typeof saved.filter === 'string' && FILTERS.some(function (f) { return f.id === saved.filter; })) view.filter = saved.filter;
+      view.messagesExpanded = saved.messagesExpanded === true;
+    }
+  } catch (e) { /* ignore */ }
+
+  if (sessionParam) {
+    var titleNode = document.querySelector('.title');
+    if (titleNode) titleNode.textContent = 'Session Hub · 本会话';
+  }
+
+  function persist() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        sections: view.sections,
+        filter: view.filter,
+        messagesExpanded: view.messagesExpanded,
+      }));
+    } catch (e) { /* ignore */ }
+  }
+
+  var esc = function (v) {
+    return String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+  var ago = function (ts) {
+    var s = Math.max(0, Math.round((Date.now() - (Number(ts) || 0)) / 1000));
+    if (s < 60) return s + 's';
+    var m = Math.round(s / 60);
+    if (m < 60) return m + 'm';
+    var h = Math.round(m / 60);
+    if (h < 24) return h + 'h';
+    return Math.round(h / 24) + 'd';
+  };
+  var clock = function (ts) { try { return new Date(Number(ts) || 0).toLocaleTimeString(); } catch (e) { return '--:--'; } };
+  var initial = function (name) {
+    var value = String(name || '?').replace(/^@/, '').trim();
+    return esc(value.slice(0, 1).toUpperCase() || '?');
+  };
+  var svgChevron = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 6.5 8 10l4-3.5"/></svg>';
+
+  function inFilter(task, filterId) {
+    var s = task.status || 'queued';
+    if (filterId === 'all') return true;
+    if (filterId === 'active') return ['running', 'sending', 'pending'].indexOf(s) !== -1;
+    if (filterId === 'failed') return ['failed', 'cancelled', 'rejected'].indexOf(s) !== -1;
+    return s === filterId;
+  }
+
+  function applySectionState() {
+    ['members', 'tasks', 'messages'].forEach(function (key) {
+      var head = document.querySelector('.sec-head[data-sec="' + key + '"]');
+      var body = document.getElementById('sec-' + key);
+      if (!head || !body) return;
+      var open = view.sections[key] !== false;
+      head.setAttribute('aria-expanded', open ? 'true' : 'false');
+      body.hidden = !open;
+    });
+    var allOpen = view.sections.members !== false && view.sections.tasks !== false && view.sections.messages !== false;
+    var label = document.getElementById('collapse-all-label');
+    if (label) label.textContent = allOpen ? '折叠' : '展开';
+  }
+
+  function renderMembers(members) {
+    var host = document.getElementById('members');
+    document.getElementById('n-members').textContent = members.length;
+    if (!members.length) { host.innerHTML = '<div class="empty">暂无成员</div>'; return; }
+    host.innerHTML = members.map(function (m) {
+      var st = m.running ? 'running' : (m.alive ? 'idle' : '');
+      // 成员显示“对话的名字”（会话标题）；没有标题才用别名兜底
+      var name = m.title || (m.alias ? '@' + m.alias : '未命名会话');
+      var alias = m.alias && m.title ? '<span class="alias">@' + esc(m.alias) + '</span>' : '';
+      return '<span class="chip"><span class="st ' + st + '"></span><span>' + esc(name) + '</span>' + alias + '</span>';
+    }).join('');
+  }
+
+  function renderMenu(tasks) {
+    var host = document.getElementById('menu');
+    host.innerHTML = FILTERS.map(function (f) {
+      var count = tasks.filter(function (t) { return inFilter(t, f.id); }).length;
+      var active = view.filter === f.id;
+      return '<button type="button" class="menu-btn" data-filter="' + f.id + '" aria-pressed="' + (active ? 'true' : 'false') + '">'
+        + '<span>' + esc(f.label) + '</span>' + (count ? '<span class="n">' + count + '</span>' : '') + '</button>';
+    }).join('');
+  }
+
+  function taskCard(t) {
+    var status = String(t.status || 'queued');
+    var label = statusLabel[status] || status;
+    var result = t.result ? '<div class="result">' + esc(String(t.result).slice(0, 300)) + '</div>' : '';
+    return '<div class="task ' + esc(status) + '">'
+      + '<div class="head"><div class="name">' + esc(t.title || '未命名任务') + '</div>'
+      + '<span class="pill ' + esc(status) + '">' + esc(label) + '</span></div>'
+      + '<div class="route">' + esc(t.fromLabel || '') + ' → ' + esc(t.toLabel || '') + '</div>'
+      + result
+      + '<div class="meta">' + ago(t.createdAt) + '</div>'
+      + '</div>';
+  }
+
+  function foldButton(action, text, count, open) {
+    return '<button type="button" class="fold" data-action="' + action + '" aria-expanded="' + (open ? 'true' : 'false') + '">'
+      + '<span>' + esc(text) + '</span>' + (count !== '' ? '<span class="n">' + count + '</span>' : '')
+      + '<span class="chev" aria-hidden="true">' + svgChevron + '</span></button>';
+  }
+
+  function renderTasks(tasks) {
+    var host = document.getElementById('tasks');
+    var filtered = tasks.filter(function (t) { return inFilter(t, view.filter); });
+    if (!filtered.length) { host.innerHTML = '<div class="empty">该分类下暂无任务</div>'; return; }
+    var doneTasks = filtered.filter(function (t) { return (t.status || '') === 'done'; });
+    var listTasks = filtered.filter(function (t) { return (t.status || '') !== 'done'; });
+    var sorted = listTasks.slice().sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+    var shown = view.tasksExpanded ? sorted : sorted.slice(0, TASK_LIMIT);
+    var html = shown.map(taskCard).join('');
+    if (sorted.length > TASK_LIMIT) {
+      html += foldButton(view.tasksExpanded ? 'collapse-tasks' : 'expand-tasks',
+        view.tasksExpanded ? '收起任务' : '显示更多任务',
+        view.tasksExpanded ? '' : sorted.length - TASK_LIMIT,
+        view.tasksExpanded);
+    }
+    if (doneTasks.length) {
+      html += foldButton('toggle-done', view.doneOpen ? '收起已完成' : '已完成', doneTasks.length, view.doneOpen);
+      if (view.doneOpen) {
+        html += doneTasks.slice().sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); }).map(taskCard).join('');
+      }
+    }
+    host.innerHTML = html;
+  }
+
+  function textBlock(entry) {
+    var text = String(entry.text || '').trim();
+    if (!text) return '<div class="text" tabindex="0" aria-disabled="true">（无正文记录）</div>';
+    var id = String(entry.messageId || entry.at || Math.random());
+    var isOpen = !!view.expandedText[id];
+    return '<div class="text' + (isOpen ? ' expanded' : '') + '" tabindex="0" role="button" aria-expanded="' + isOpen + '" data-msg="' + esc(id) + '">'
+      + esc(text) + (isOpen ? '' : '<span class="more"> …</span>') + '</div>';
+  }
+
+  function renderMessages(messages) {
+    var host = document.getElementById('messages');
+    if (!messages.length) { host.innerHTML = '<div class="empty">暂无消息</div>'; return; }
+    var shown = view.messagesExpanded ? messages.slice(0, 50) : messages.slice(0, MSG_LIMIT);
+    var html = shown.map(function (e) {
+      var auto = e.auto === true;
+      var kind = e.kind || 'note';
+      var who = auto ? '自动通知' : (e.from || '未知发送方');
+      return '<div class="msg' + (auto ? ' auto' : '') + '">'
+        + '<div class="avatar" aria-hidden="true">' + (auto ? '·' : initial(who)) + '</div>'
+        + '<div class="msg-body">'
+        + '<div class="msg-top">'
+        + '<span class="who">' + esc(who) + '</span>'
+        + (auto ? '' : '<span class="arrow" aria-hidden="true">→</span><span class="to">' + esc(e.to || '') + '</span>')
+        + '<span class="kind ' + esc(kind) + '">' + esc(kindLabel[kind] || kind) + '</span>'
+        + '<span class="msg-time">' + clock(e.at) + '</span>'
+        + '</div>' + textBlock(e) + '</div></div>';
+    }).join('');
+    if (messages.length > MSG_LIMIT) {
+      html += foldButton(view.messagesExpanded ? 'collapse-messages' : 'expand-messages',
+        view.messagesExpanded ? '收起消息' : '显示更多消息',
+        view.messagesExpanded ? '' : Math.min(messages.length, 50) - MSG_LIMIT,
+        view.messagesExpanded);
+    }
+    host.innerHTML = html;
+  }
+
+  var lastSnapshot = { members: [], tasks: [], messages: [], generatedAt: Date.now() };
+  function render(snap) {
+    lastSnapshot = snap || lastSnapshot;
+    document.getElementById('c-members').textContent = (snap.members || []).length;
+    document.getElementById('c-tasks').textContent = (snap.tasks || []).length;
+    document.getElementById('n-tasks').textContent = (snap.tasks || []).length;
+    document.getElementById('n-messages').textContent = (snap.messages || []).length;
+    document.getElementById('c-time').textContent = new Date(snap.generatedAt || Date.now()).toLocaleTimeString();
+    document.getElementById('err').hidden = true;
+    renderMembers(snap.members || []);
+    renderMenu(snap.tasks || []);
+    renderTasks(snap.tasks || []);
+    renderMessages(snap.messages || []);
+    applySectionState();
+  }
+
+  function fail(error) {
+    var err = document.getElementById('err');
+    err.hidden = false;
+    err.textContent = '连接失败：' + (error && error.message ? error.message : String(error));
+  }
+
+  document.addEventListener('click', function (event) {
+    var target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+    var secHead = target.closest('.sec-head');
+    if (secHead) {
+      var key = secHead.getAttribute('data-sec');
+      view.sections[key] = view.sections[key] === false;
+      persist(); applySectionState();
+      return;
+    }
+    if (target.closest('#collapse-all')) {
+      var allOpen = view.sections.members !== false && view.sections.tasks !== false && view.sections.messages !== false;
+      var next = !allOpen;
+      view.sections = { members: next, tasks: next, messages: next };
+      persist(); applySectionState();
+      return;
+    }
+    var filterBtn = target.closest('[data-filter]');
+    if (filterBtn) {
+      view.filter = filterBtn.getAttribute('data-filter');
+      view.tasksExpanded = false;
+      persist(); render(lastSnapshot);
+      return;
+    }
+    var actionBtn = target.closest('[data-action]');
+    if (actionBtn) {
+      var action = actionBtn.getAttribute('data-action');
+      if (action === 'expand-tasks') view.tasksExpanded = true;
+      if (action === 'collapse-tasks') view.tasksExpanded = false;
+      if (action === 'toggle-done') view.doneOpen = !view.doneOpen;
+      if (action === 'expand-messages') { view.messagesExpanded = true; persist(); }
+      if (action === 'collapse-messages') { view.messagesExpanded = false; persist(); }
+      render(lastSnapshot);
+      return;
+    }
+    var textNode = target.closest('[data-msg]');
+    if (textNode) {
+      var id = textNode.getAttribute('data-msg');
+      view.expandedText[id] = !view.expandedText[id];
+      render(lastSnapshot);
+    }
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    var node = event.target instanceof Element ? event.target.closest('[data-msg]') : null;
+    if (!node) return;
+    event.preventDefault();
+    var id = node.getAttribute('data-msg');
+    view.expandedText[id] = !view.expandedText[id];
+    render(lastSnapshot);
+  });
+
+  var timer = null;
+  async function tick() {
+    try {
+      var response = await fetch(snapshotPath, { cache: 'no-store' });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      render(await response.json());
+    } catch (error) {
+      fail(error);
+    } finally {
+      timer = setTimeout(tick, 2000);
+    }
+  }
+  applySectionState();
+  tick();
+  window.addEventListener('beforeunload', function () { if (timer) clearTimeout(timer); });
+})();
+</script>
+</body>
+</html>
