@@ -11,8 +11,8 @@ window.__ModuleLoader__.load({
 
     const TAB_ID = 'dsh-crosssession/board';
     const TAB_KIND = 'sessionHubBoard';
-    const PANEL_CONFIG_PATH = '/session-hub/panel-config.json';
-    const MENTIONS_PATH = '/session-hub/mentions.json';
+    const PANEL_CONFIG_PATH = '/dsh-crosssession/panel-config.json';
+    const MENTIONS_PATH = '/dsh-crosssession/mentions.json';
     const OPEN_ONCE_KEY = 'dsh-crosssession.right-sidebar-opened-v3';
 
     /** Cached member names for the `@` mention source (alias + title). */
@@ -37,7 +37,7 @@ window.__ModuleLoader__.load({
       if (!inputTriggers || typeof inputTriggers.registerSource !== 'function') return undefined;
       return ctx.effect(() => inputTriggers.registerSource({
         trigger: '@',
-        name: 'session-hub',
+        name: 'dsh-crosssession',
         showGroupTitle: false,
         async candidates(_session, request) {
           await refreshMentions();
@@ -53,7 +53,7 @@ window.__ModuleLoader__.load({
               name,
               ...(alias && title ? { label: '@' + alias + ' · ' + title } : {}),
               description: '发送消息 / 任务到该会话',
-              value: 'session-hub:' + String(member.sessionId || ''),
+              value: 'dsh-crosssession:' + String(member.sessionId || ''),
             });
           }
           return items.slice(0, 8);
@@ -66,7 +66,7 @@ window.__ModuleLoader__.load({
         lexicon() {
           return mentions.aliases.slice();
         },
-      }), 'session-hub: @ mentions');
+      }), 'dsh-crosssession: @ mentions');
     }
 
     /** Which session the main view currently retains (the board is scoped to it). */
@@ -112,7 +112,7 @@ window.__ModuleLoader__.load({
         ctx.sidebarRight.openTab(TAB_KIND, { params: {} });
         return true;
       } catch (error) {
-        ctx.logger?.warn?.('session-hub client: could not open the board tab: ' + String(error?.message || error));
+        ctx.logger?.warn?.('dsh-crosssession client: could not open the board tab: ' + String(error?.message || error));
         return false;
       }
     }
@@ -154,7 +154,7 @@ window.__ModuleLoader__.load({
     const inject = ['sidebarRight', 'sidebarRightTabs', 'slots', 'sessions', 'inputTriggers'];
 
     function apply(ctx) {
-      ctx.logger?.info?.('session-hub client: loaded');
+      ctx.logger?.info?.('dsh-crosssession client: loaded');
       BoardTab.ctx = ctx;
 
       registerMentionSource(ctx);
@@ -162,14 +162,14 @@ window.__ModuleLoader__.load({
         void refreshMentions();
         const timer = window.setInterval(() => { void refreshMentions(); }, 30_000);
         return () => window.clearInterval(timer);
-      }, 'session-hub: mention cache');
+      }, 'dsh-crosssession: mention cache');
 
       ctx.effect(() => ctx.sidebarRightTabs.register({
         id: TAB_ID,
         kind: TAB_KIND,
         priority: 'builtin',
         title: () => '任务板',
-      }), 'session-hub: board tab type');
+      }), 'dsh-crosssession: board tab type');
 
       ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
         name: 'sidebar.right.pane.tab',
@@ -183,7 +183,7 @@ window.__ModuleLoader__.load({
 
       ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
         name: 'conversation.session.header.utilities',
-        id: 'session-hub-board',
+        id: 'dsh-crosssession-board',
         order: 40,
         inject: () => ({}),
       }, function SessionHubBoardAction() {

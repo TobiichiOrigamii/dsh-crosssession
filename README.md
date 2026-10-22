@@ -56,7 +56,7 @@ dsh plugin add dsh-crosssession
 
 ```yaml
 - insert:
-    - id: session-hub
+    - id: dsh-crosssession
       name: 'file:///absolute/path/to/dsh-crosssession/index.js'
       config:
         quietMode: true
@@ -77,7 +77,7 @@ session_report({ status: "done", summary: "登录接口已实现，测试通过"
 
 # 查看团队与任务板
 session_team_status()
-session_hub_board()
+session_board()
 ```
 
 ## 输入框 `@` 提及
@@ -106,10 +106,10 @@ session_hub_board()
 | `session_team_status` | 成员花名册 + 任务板概览 |
 | `session_alias` | 绑定/清除会话别名 |
 | `session_bridge_log` | 最近跨会话消息时间线 |
-| `session_hub_board` | 返回看板地址与统计 |
+| `session_board` | 返回看板地址与统计 |
 | `session_broadcast` | 群发消息/任务（同样受审批策略约束） |
 | `session_inbox` | 后台读取发给本会话的跨会话消息（不写入对话） |
-| `session_export_log` | 导出任务板/时间线 Markdown（限 `harness\session-hub\`） |
+| `session_export_log` | 导出任务板/时间线 Markdown（限 `harness\dsh-crosssession\`） |
 | `session_purge_log` | 清理消息账本/已结束任务 |
 | `session_task_approve` | 批准/拒绝「待批准」任务（仅调度方） |
 | `session_task_cancel` | 取消任务（调度方或执行方） |
@@ -119,7 +119,7 @@ session_hub_board()
 ## 配置
 
 ```yaml
-- id: session-hub
+- id: dsh-crosssession
   config:
     completionNotify: true      # 任务结束时发送完成通知
     deliverReports: chat        # chat=进对话；board=只写任务板/收件箱
@@ -133,7 +133,7 @@ session_hub_board()
 
 ### 审批策略 `policy.json`
 
-数据目录 `harness\session-hub\policy.json`（热读取，改完立即生效）：
+数据目录 `harness\dsh-crosssession\policy.json`（热读取，改完立即生效）：
 
 ```json
 {
@@ -163,12 +163,12 @@ policy.example.json 审批策略示例
 LICENSE             MIT
 ```
 
-运行时数据位于 `$DSH_HOME/session-hub/`（`state.json` / `policy.json`），不随包发布。
+运行时数据位于 `$DSH_HOME/dsh-crosssession/`（`state.json` / `policy.json`），不随包发布。
 
 ## 安全
 
 - 看板服务仅监听 loopback，响应带 CSP（`default-src 'none'`，`frame-ancestors` 限定 DSH origin）、`nosniff`、`no-referrer`
-- `session_export_log` 仅允许写入 `harness\session-hub\`
+- `session_export_log` 仅允许写入 `harness\dsh-crosssession\`
 - `state.json` 损坏时先备份为 `state.json.corrupt-*`
 - 跨会话消息本质是发给另一个 agent 的 prompt，安全性依赖审批策略、hop 上限与接收方自身沙箱
 

@@ -1,5 +1,5 @@
 /**
- * session-hub — cross-session / cross-workspace messaging + persistent team task board for DSH.
+ * dsh-crosssession — cross-session / cross-workspace messaging + persistent team task board for DSH.
  *
  * Loaded as a plain host plugin (file:// URL) from the profile patch layer.
  * Gives every agent a small set of tools:
@@ -21,7 +21,7 @@
  *   a worker's turn ends while it owns a running task, we automatically deliver a notice
  *   back to the dispatcher, so the dispatcher never has to block and wait.
  * - Everything (aliases, roster, task board, message ledger) is persisted as JSON under
- *   $DSH_HOME/session-hub/state.json so it survives restarts.
+ *   $DSH_HOME/dsh-crosssession/state.json so it survives restarts.
  */
 
 import fs from 'node:fs';
@@ -30,7 +30,7 @@ import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-export const name = 'session-hub';
+export const name = 'dsh-crosssession';
 export const inject = ['tools', 'sessionController', 'workspaceRegistry', 'sessionQuery'];
 
 const STATE_VERSION = 1;
@@ -60,7 +60,7 @@ export function apply(ctx, config = {}) {
   };
 
   const PLUGIN_DIR = path.dirname(fileURLToPath(import.meta.url));
-  const stateDir = path.join(process.env.DSH_HOME || process.cwd(), 'session-hub');
+  const stateDir = path.join(process.env.DSH_HOME || process.cwd(), 'dsh-crosssession');
   const statePath = path.join(stateDir, 'state.json');
 
   /** @type {{version:number, aliases:Record<string,string>, members:Record<string,{alias?:string, role?:string, workspaceId?:string, joinedAt:number}>, tasks:Record<string, any>, messages:any[], teams:Record<string, any>, seq:number}} */
@@ -107,9 +107,9 @@ export function apply(ctx, config = {}) {
       try {
         const backup = `${statePath}.corrupt-${Date.now()}`;
         fs.renameSync(statePath, backup);
-        ctx.logger?.warn?.(`session-hub: state.json unreadable (${String(error?.message || error)}); moved to ${backup}`);
+        ctx.logger?.warn?.(`dsh-crosssession: state.json unreadable (${String(error?.message || error)}); moved to ${backup}`);
       } catch (renameError) {
-        ctx.logger?.warn?.(`session-hub: state.json unreadable and could not be backed up: ${String(renameError?.message || renameError)}`);
+        ctx.logger?.warn?.(`dsh-crosssession: state.json unreadable and could not be backed up: ${String(renameError?.message || renameError)}`);
       }
     }
     return empty;
@@ -122,7 +122,7 @@ export function apply(ctx, config = {}) {
       fs.writeFileSync(tmp, JSON.stringify(state, null, 2), 'utf8');
       fs.renameSync(tmp, statePath);
     } catch (error) {
-      ctx.logger?.warn?.(`session-hub: failed to persist state: ${String(error)}`);
+      ctx.logger?.warn?.(`dsh-crosssession: failed to persist state: ${String(error)}`);
     }
   }
 
@@ -143,7 +143,7 @@ export function apply(ctx, config = {}) {
       saveTimer = null;
     }
     saveStateNow();
-  }, 'session-hub.save-timer');
+  }, 'dsh-crosssession.save-timer');
 
   // Periodic housekeeping: bounded maps, expired approvals.
   ctx.effect(() => {
@@ -178,7 +178,7 @@ export function apply(ctx, config = {}) {
     }, MAINTENANCE_INTERVAL_MS);
     timer.unref?.();
     return () => clearInterval(timer);
-  }, 'session-hub.maintenance');
+  }, 'dsh-crosssession.maintenance');
 
   function nextSeq() {
     state.seq += 1;
@@ -225,7 +225,7 @@ export function apply(ctx, config = {}) {
         title = typeof snapshot === 'string' ? snapshot
           : (snapshot && typeof snapshot.title === 'string' ? snapshot.title : undefined);
       } catch (error) {
-        ctx.logger?.info?.(`session-hub: could not read session title: ${safeErrorText(error)}`);
+        ctx.logger?.info?.(`dsh-crosssession: could not read session title: ${safeErrorText(error)}`);
         title = undefined;
       }
       if (title) sessionTitleCache.set(summary.sessionId, title);
@@ -301,7 +301,7 @@ export function apply(ctx, config = {}) {
     const signal = options.signal ?? new AbortController().signal;
     await ctx.sessionController.prompt({
       sessionId: targetSessionId,
-      requestId: `session-hub-${randomUUID()}`,
+      requestId: `dsh-crosssession-${randomUUID()}`,
       content: [{ type: 'text', text }],
       ...(mode === 'steer' ? { mode: 'steer' } : {}),
     }, signal);
@@ -402,7 +402,7 @@ export function apply(ctx, config = {}) {
     return text;
   }
 
-  /** Resolve an export path, refusing anything outside the session-hub data directory. */
+  /** Resolve an export path, refusing anything outside the dsh-crosssession data directory. */
   function resolveExportTarget(input) {
     const root = path.resolve(stateDir);
     const fallback = path.join(root, `timeline-${new Date().toISOString().replace(/[:.]/g, '-')}.md`);
@@ -411,7 +411,7 @@ export function apply(ctx, config = {}) {
     if (raw.length > 500) throw new Error('export path is too long (max 500 characters)');
     const resolved = path.isAbsolute(raw) ? path.resolve(raw) : path.resolve(root, raw);
     if (resolved !== root && !resolved.startsWith(root + path.sep)) {
-      throw new Error('export path must be inside the session-hub data directory');
+      throw new Error('export path must be inside the dsh-crosssession data directory');
     }
     return resolved;
   }
@@ -467,7 +467,7 @@ export function apply(ctx, config = {}) {
     if (activeTaskFor(workerId)) return undefined;
     const next = nextQueuedTask(workerId);
     if (!next) return undefined;
-    ctx.logger?.info?.(`session-hub: dispatching queued task ${next.taskId} to ${workerId}`);
+    ctx.logger?.info?.(`dsh-crosssession: dispatching queued task ${next.taskId} to ${workerId}`);
     const result = await dispatchTask(next);
     return result?.busy ? undefined : result;
   }
@@ -485,7 +485,7 @@ export function apply(ctx, config = {}) {
       }
       fileValue = policyCache.value;
     } catch (error) {
-      ctx.logger?.info?.(`session-hub: approval policy unreadable, using patch config: ${safeErrorText(error)}`);
+      ctx.logger?.info?.(`dsh-crosssession: approval policy unreadable, using patch config: ${safeErrorText(error)}`);
       fileValue = null;
     }
     const patterns = fileValue?.approvalWorkspaces ?? cfg.approvalWorkspaces;
@@ -504,7 +504,7 @@ export function apply(ctx, config = {}) {
         try {
           return new RegExp(pattern.slice(1, -1), 'i').test(value);
         } catch (error) {
-          ctx.logger?.warn?.(`session-hub: invalid approval regex pattern ignored: ${safeErrorText(error)}`);
+          ctx.logger?.warn?.(`dsh-crosssession: invalid approval regex pattern ignored: ${safeErrorText(error)}`);
           return false;
         }
       }
@@ -520,7 +520,7 @@ export function apply(ctx, config = {}) {
       const summaries = await listSessionSummaries(signal);
       for (const summary of summaries) index.set(summary.sessionId, summary.cwd || '');
     } catch (error) {
-      ctx.logger?.info?.(`session-hub: could not resolve workspaces for approval check: ${safeErrorText(error)}`);
+      ctx.logger?.info?.(`dsh-crosssession: could not resolve workspaces for approval check: ${safeErrorText(error)}`);
     }
     return index;
   }
@@ -575,7 +575,7 @@ export function apply(ctx, config = {}) {
           }
         }
       } catch (error) {
-        ctx.logger?.info?.(`session-hub: ignored malformed session event: ${safeErrorText(error)}`);
+        ctx.logger?.info?.(`dsh-crosssession: ignored malformed session event: ${safeErrorText(error)}`);
       }
       return;
     }
@@ -610,12 +610,12 @@ export function apply(ctx, config = {}) {
         recordMessage({ messageId: `auto-${randomUUID()}`, taskId: task.taskId, from: sessionId, to: task.from, kind: 'result', hops: (task.hops || 1) + 1, status: 'delivered', auto: true, text: lastAssistantText.get(sessionId) || '（没有捕获到 assistant 输出）' });
         if (cfg.completionNotify && cfg.deliverReports !== 'board') {
           void deliver(task.from, note, { urgent: false }).catch((error) => {
-            ctx.logger?.warn?.(`session-hub: completion notice for task ${task.taskId} failed: ${String(error?.message || error)}`);
+            ctx.logger?.warn?.(`dsh-crosssession: completion notice for task ${task.taskId} failed: ${String(error?.message || error)}`);
           });
         }
       }
       void drainQueue(sessionId).catch((error) => {
-        ctx.logger?.warn?.(`session-hub: draining queued tasks for ${sessionId} failed: ${String(error?.message || error)}`);
+        ctx.logger?.warn?.(`dsh-crosssession: draining queued tasks for ${sessionId} failed: ${String(error?.message || error)}`);
       });
     }
   });
@@ -723,7 +723,7 @@ export function apply(ctx, config = {}) {
               ...(options.reasoningEffort ? { reasoningEffort: options.reasoningEffort } : {}),
             });
           } catch (error) {
-            ctx.logger?.warn?.(`session-hub: could not inherit model for ${sessionId}: ${String(error?.message || error)}`);
+            ctx.logger?.warn?.(`dsh-crosssession: could not inherit model for ${sessionId}: ${String(error?.message || error)}`);
           }
         }
         assertShort(args.title ?? '', 'title');
@@ -731,7 +731,7 @@ export function apply(ctx, config = {}) {
           try {
             await ctx.sessionController.rename({ sessionId, title: args.title.trim() });
           } catch (error) {
-            ctx.logger?.warn?.(`session-hub: could not rename ${sessionId}: ${String(error?.message || error)}`);
+            ctx.logger?.warn?.(`dsh-crosssession: could not rename ${sessionId}: ${String(error?.message || error)}`);
           }
         }
         const alias = typeof args.alias === 'string' && args.alias.trim() ? args.alias.trim() : undefined;
@@ -994,7 +994,7 @@ export function apply(ctx, config = {}) {
           : await deliver(task.from, note, { urgent: false, signal: exec?.signal });
         recordMessage({ messageId, taskId, from: caller, to: task.from, kind: 'result', hops: (task.hops || 1) + 1, status: cfg.deliverReports === 'board' ? 'board-only' : 'delivered', mode: delivered.mode, text: summary });
         void drainQueue(caller).catch((error) => {
-          ctx.logger?.warn?.(`session-hub: draining queued tasks after report failed: ${String(error?.message || error)}`);
+          ctx.logger?.warn?.(`dsh-crosssession: draining queued tasks after report failed: ${String(error?.message || error)}`);
         });
         return { text: `task ${taskId} recorded as ${status}; dispatcher notified (${delivered.mode})`, taskId, status };
       },
@@ -1150,8 +1150,8 @@ export function apply(ctx, config = {}) {
       },
     },
 
-    session_hub_board: {
-      name: 'session_hub_board',
+    session_board: {
+      name: 'session_board',
       description: 'Return the URL of the live visual task board (auto-refreshing web page served by this Harness) plus current counts. Open the URL in a browser on this machine.',
       parameters: { type: 'object', additionalProperties: false, properties: {} },
       schema: { type: 'object', additionalProperties: true },
@@ -1164,7 +1164,7 @@ export function apply(ctx, config = {}) {
         for (const task of snapshot.tasks) counts[task.status] = (counts[task.status] || 0) + 1;
         const countText = Object.entries(counts).map(([status, count]) => `${status}:${count}`).join(' ') || 'empty';
         return {
-          text: `任务板（2 秒自动刷新，可嵌进 DSH 右侧栏的「浏览器」页签）: ${url}\n成员 ${snapshot.members.length}，任务 ${snapshot.tasks.length}（${countText}）\n打开方式：右侧栏 → 指南/Guide → 浏览器 → 粘贴上面的地址。该地址是独立 loopback 端口（不是 DSH 自身 origin），内置浏览器可以打开。`,
+          text: `任务板（2 秒自动刷新，在 DSH 右侧栏「任务板」标签内查看）: ${url}\n成员 ${snapshot.members.length}，任务 ${snapshot.tasks.length}（${countText}）\n打开方式：右侧栏 → 指南/Guide → 浏览器 → 粘贴上面的地址。该地址是独立 loopback 端口（不是 DSH 自身 origin），内置浏览器可以打开。`,
           url,
         };
       },
@@ -1389,7 +1389,7 @@ export function apply(ctx, config = {}) {
 
     session_export_log: {
       name: 'session_export_log',
-      description: 'Export the cross-session timeline and task board to a Markdown file (default under $DSH_HOME/session-hub/). Read-only snapshot; returns the file path.',
+      description: 'Export the cross-session timeline and task board to a Markdown file (default under $DSH_HOME/dsh-crosssession/). Read-only snapshot; returns the file path.',
       parameters: {
         type: 'object',
         additionalProperties: false,
@@ -1531,7 +1531,7 @@ export function apply(ctx, config = {}) {
               removedWorkspace = owningWorkspace.title;
             }
           } catch (error) {
-            ctx.logger?.warn?.(`session-hub: session ${sessionId} deleted but workspace cleanup failed: ${String(error?.message || error)}`);
+            ctx.logger?.warn?.(`dsh-crosssession: session ${sessionId} deleted but workspace cleanup failed: ${String(error?.message || error)}`);
           }
         }
         return {
@@ -1562,8 +1562,8 @@ export function apply(ctx, config = {}) {
 
   // ---------------------------------------------------------------- live web board
 
-  const BOARD_PATH = '/session-hub/board';
-  const SNAPSHOT_PATH = '/session-hub/snapshot';
+  const BOARD_PATH = '/dsh-crosssession/board';
+  const SNAPSHOT_PATH = '/dsh-crosssession/snapshot';
 
   // The in-app right-sidebar browser refuses the DSH app's own origin, so the board
   // is also served from an independent loopback port (a different origin).
@@ -1641,20 +1641,20 @@ export function apply(ctx, config = {}) {
         res.end();
       });
       server.on('error', (error) => {
-        ctx.logger?.warn?.(`session-hub: standalone board server failed: ${String(error?.message || error)}`);
+        ctx.logger?.warn?.(`dsh-crosssession: standalone board server failed: ${String(error?.message || error)}`);
       });
       server.on('listening', () => {
         const address = server.address();
         const port = typeof address === 'object' && address ? address.port : undefined;
         if (port) standaloneBoard = { server, port };
-        ctx.logger?.info?.(`session-hub: standalone board listening on port ${String(port)}`);
+        ctx.logger?.info?.(`dsh-crosssession: standalone board listening on port ${String(port)}`);
       });
       ctx.effect(() => () => {
         try { server.close(); } catch { /* ignore */ }
-      }, 'session-hub.standalone-board');
+      }, 'dsh-crosssession.standalone-board');
       server.listen(0, '127.0.0.1');
     } catch (error) {
-      ctx.logger?.warn?.(`session-hub: standalone board unavailable: ${String(error?.message || error)}`);
+      ctx.logger?.warn?.(`dsh-crosssession: standalone board unavailable: ${String(error?.message || error)}`);
     }
   }
 
@@ -1696,7 +1696,7 @@ export function apply(ctx, config = {}) {
     try {
       sessions = await listSessionSummaries(undefined);
     } catch (error) {
-      ctx.logger?.info?.(`session-hub: session list unavailable for board snapshot: ${safeErrorText(error)}`);
+      ctx.logger?.info?.(`dsh-crosssession: session list unavailable for board snapshot: ${safeErrorText(error)}`);
       sessions = [];
     }
     const byId = new Map(sessions.map((session) => [session.sessionId, session]));
@@ -1708,10 +1708,14 @@ export function apply(ctx, config = {}) {
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 200)
       .map((task) => ({ ...task, fromLabel: labelForSnapshot(task.from, byId), toLabel: labelForSnapshot(task.to, byId) }));
-    for (const [sessionId] of Object.entries(state.members)) {
+    for (const [sessionId] of Object.entries(state.members).slice(0, 12)) {
       if (byId.get(sessionId)?.title) continue;
+      if (!byId.has(sessionId)) continue;
       try {
-        const snapshot = await ctx.sessionQuery.readTitle(sessionId);
+        const snapshot = await Promise.race([
+          ctx.sessionQuery.readTitle(sessionId),
+          new Promise((resolve) => { setTimeout(() => resolve(undefined), 1200); }),
+        ]);
         const title = typeof snapshot === 'string' ? snapshot
           : (snapshot && typeof snapshot.title === 'string' ? snapshot.title : undefined);
         if (title) {
@@ -1720,7 +1724,7 @@ export function apply(ctx, config = {}) {
           if (state.members[sessionId] && !state.members[sessionId].title) state.members[sessionId].title = title;
         }
       } catch (error) {
-        ctx.logger?.info?.(`session-hub: member title unavailable: ${safeErrorText(error)}`);
+        ctx.logger?.info?.(`dsh-crosssession: member title unavailable: ${safeErrorText(error)}`);
       }
     }
     const involved = scoped ? new Set([scoped]) : undefined;
@@ -1799,7 +1803,7 @@ export function apply(ctx, config = {}) {
 </div>
 </div>
 </div>
-<footer class="footer"><p>Session Hub v0.1.1 · 每2秒自动刷新 · 数据来源 DSH session-hub 插件</p></footer>
+<footer class="footer"><p>Session Hub v0.1.1 · 每2秒自动刷新 · 数据来源 DSH dsh-crosssession 插件</p></footer>
 <script>
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ago=ts=>{const s=Math.max(0,Math.round((Date.now()-ts)/1000));if(s<60)return s+'s';const m=Math.round(s/60);if(m<60)return m+'m';const h=Math.round(m/60);if(h<24)return h+'h';return Math.round(h/24)+'d';};
@@ -1811,7 +1815,7 @@ function renderTaskCard(t){const sc=t.status==='awaiting-approval'?'queued':t.st
 function renderKanbanColumn(title,icon,tasks,sk){const icons={queued:'⏱️',running:'⚡',blocked:'⚠️',done:'✅',failed:'❌'};return\`<div class="kanban-column"><div class="column-header"><div class="column-title"><span class="column-icon">\${icons[sk]||'📋'}</span>\${title}</div><span class="column-count">\${tasks.length}</span></div><div class="column-cards">\${tasks.length>0?tasks.map(renderTaskCard).join(''):'<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">暂无任务</div></div>'}</div></div>\`;}
 function renderTimelineItem(e){return\`<div class="timeline-item"><span class="timeline-time">\${new Date(e.at).toLocaleTimeString()}</span><span class="timeline-kind">\${esc(e.kind)}\${e.auto?' · auto':''}</span><span class="timeline-content">\${esc(e.from)} → \${esc(e.to)}\${e.taskId?\` · \${esc(e.taskId.slice(0,12))}\`:''}</span></div>\`;}
 function render(snap){document.getElementById('stat-members').textContent=snap.members.length;document.getElementById('stat-tasks').textContent=snap.tasks.length;document.getElementById('stat-messages').textContent=snap.messages.length;document.getElementById('stat-time').textContent=new Date(snap.generatedAt).toLocaleTimeString();document.getElementById('badge-members').textContent=snap.members.length;document.getElementById('badge-tasks').textContent=snap.tasks.length;document.getElementById('badge-messages').textContent=snap.messages.length;const mg=document.getElementById('members-grid');if(snap.members.length>0){mg.innerHTML=snap.members.map(renderMemberCard).join('');}else{mg.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">暂无成员</div></div>';}const groups={queued:[],running:[],blocked:[],done:[],failed:[]};for(const t of snap.tasks){if(t.status==='queued'||t.status==='awaiting-approval')groups.queued.push(t);else if(t.status==='running'||t.status==='sending'||t.status==='pending')groups.running.push(t);else if(t.status==='blocked')groups.blocked.push(t);else if(t.status==='done')groups.done.push(t);else groups.failed.push(t);}const kb=document.getElementById('kanban-board');kb.innerHTML=[renderKanbanColumn('排队中','⏱️',groups.queued.slice(0,20),'queued'),renderKanbanColumn('进行中','⚡',groups.running.slice(0,20),'running'),renderKanbanColumn('阻塞','⚠️',groups.blocked.slice(0,20),'blocked'),renderKanbanColumn('已完成','✅',groups.done.slice(0,20),'done'),renderKanbanColumn('失败/取消','❌',groups.failed.slice(0,20),'failed')].join('');const tl=document.getElementById('timeline');if(snap.messages.length>0){tl.innerHTML=snap.messages.map(renderTimelineItem).join('');}else{tl.innerHTML='<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">暂无消息</div></div>';}}
-async function tick(){try{const response=await fetch('/session-hub/snapshot',{cache:'no-store'});if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();render(data);}catch(error){console.error('Failed to fetch snapshot:',error);document.getElementById('stat-time').textContent='连接失败';}}
+async function tick(){try{const response=await fetch('/dsh-crosssession/snapshot',{cache:'no-store'});if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();render(data);}catch(error){console.error('Failed to fetch snapshot:',error);document.getElementById('stat-time').textContent='连接失败';}}
 tick();setInterval(tick,2000);
 </script>
 </body>
@@ -1878,7 +1882,7 @@ tick();setInterval(tick,2000);
           }));
           disposers.push(server.register({
             kind: 'exact',
-            path: '/session-hub/panel.js',
+            path: '/dsh-crosssession/panel.js',
             handler: (req, res) => {
               if (!boardRequestAllowed(req)) return sendRes(res, 403, 'text/plain; charset=utf-8', 'forbidden');
               try {
@@ -1891,7 +1895,7 @@ tick();setInterval(tick,2000);
           }));
           disposers.push(server.register({
             kind: 'exact',
-            path: '/session-hub/panel-config.json',
+            path: '/dsh-crosssession/panel-config.json',
             handler: (req, res) => {
               if (!boardRequestAllowed(req)) return sendRes(res, 403, 'text/plain; charset=utf-8', 'forbidden');
               return sendRes(res, 200, 'application/json; charset=utf-8', JSON.stringify({
@@ -1902,7 +1906,7 @@ tick();setInterval(tick,2000);
           }));
           disposers.push(server.register({
             kind: 'exact',
-            path: '/session-hub/mentions.json',
+            path: '/dsh-crosssession/mentions.json',
             handler: (req, res) => {
               if (!boardRequestAllowed(req)) return sendRes(res, 403, 'text/plain; charset=utf-8', 'forbidden');
               const members = Object.entries(state.members).map(([sessionId, member]) => ({
@@ -1914,28 +1918,28 @@ tick();setInterval(tick,2000);
             },
           }));
         } catch (error) {
-          ctx.logger?.warn?.(`session-hub: board routes unavailable: ${String(error?.message || error)}`);
+          ctx.logger?.warn?.(`dsh-crosssession: board routes unavailable: ${String(error?.message || error)}`);
         }
         return () => {
           for (const dispose of disposers) {
             try {
               dispose?.();
             } catch (error) {
-              ctx.logger?.info?.(`session-hub: board route teardown raced: ${safeErrorText(error)}`);
+              ctx.logger?.info?.(`dsh-crosssession: board route teardown raced: ${safeErrorText(error)}`);
             }
           }
         };
-      }, 'session-hub.board-routes');
+      }, 'dsh-crosssession.board-routes');
 
 
     });
   } catch (error) {
-    ctx.logger?.warn?.(`session-hub: web board not mounted: ${String(error?.message || error)}`);
+    ctx.logger?.warn?.(`dsh-crosssession: web board not mounted: ${String(error?.message || error)}`);
   }
 
   startStandaloneBoard();
 
-  ctx.logger?.info?.('session-hub: loaded (cross-session messaging + persistent task board + web board + standalone board origin)');
+  ctx.logger?.info?.('dsh-crosssession: loaded (cross-session messaging + persistent task board + web board + standalone board origin)');
 }
 
 

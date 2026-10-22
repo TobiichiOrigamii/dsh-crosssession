@@ -291,12 +291,12 @@ section { margin-top: 6px; }
 <script>
 (function () {
   'use strict';
-  var STORE_KEY = 'dsh-session-hub-board-view-v2';
+  var STORE_KEY = 'dsh-crosssession-board-view-v2';
   var TASK_LIMIT = 5;
   var MSG_LIMIT = 10;
   // 只显示“本会话参与的”数据：client 插件通过 ?session=<id> 传入当前会话
   var sessionParam = new URLSearchParams(location.search).get('session') || '';
-  var snapshotPath = (location.pathname === '/board' ? '/snapshot' : '/session-hub/snapshot')
+  var snapshotPath = (location.pathname === '/board' ? '/snapshot' : '/dsh-crosssession/snapshot')
     + (sessionParam ? '?session=' + encodeURIComponent(sessionParam) : '');
   var FILTERS = [
     { id: 'all', label: '全部' },
