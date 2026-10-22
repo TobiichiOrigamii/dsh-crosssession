@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Session Hub">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#1f2328"/>
+  <rect x="14" y="16" width="24" height="5" rx="2.5" fill="#e8eaed"/>
+  <rect x="14" y="27" width="36" height="5" rx="2.5" fill="#6ea8fe"/>
+  <rect x="14" y="38" width="28" height="5" rx="2.5" fill="#4ade80"/>
+  <rect x="14" y="49" width="16" height="5" rx="2.5" fill="#9aa1ab"/>
+</svg>

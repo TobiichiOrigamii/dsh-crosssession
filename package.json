@@ -1,17 +1,22 @@
 {
   "name": "dsh-crosssession",
   "version": "0.1.0",
-  "description": "Cross-session / cross-workspace messaging, persistent session team, approval gates and a per-session task board for DeepSeek Harness (DSH).",
+  "description": "Cross-session messaging, persistent session team, approval gates and a per-session task board for DeepSeek Harness (DSH).",
   "type": "module",
   "main": "index.js",
+  "icon": "./icon.svg",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "dsh": {
     "engines": {
       "dsh": ">=0.2.0"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
     },
     "client": {
       "platform": "web",
@@ -22,7 +27,10 @@
     "index.js",
     "client.js",
     "board.html",
+    "cordis.patch.yml",
     "policy.example.json",
+    "locale/*.json",
+    "icon.svg",
     "README.md",
     "LICENSE"
   ],
@@ -51,4 +59,3 @@
     "access": "public"
   }
 }
-

@@ -1,0 +1,6 @@
+- insert:
+    - id: dsh-crosssession
+      name: dsh-crosssession
+      config:
+        quietMode: true
+        approvalTimeoutSeconds: 300
