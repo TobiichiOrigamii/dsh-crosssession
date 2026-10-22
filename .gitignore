@@ -7,3 +7,5 @@ policy.json
 state.json.corrupt-*
 .DS_Store
 Thumbs.db
+
+*.tgz

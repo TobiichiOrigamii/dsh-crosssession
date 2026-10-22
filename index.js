@@ -368,6 +368,10 @@ export function apply(ctx, config = {}) {
   function memberEntry(sessionId, patch = {}) {
     const existing = state.members[sessionId] || { joinedAt: Date.now() };
     state.members[sessionId] = { ...existing, ...patch };
+    if (!state.members[sessionId].title) {
+      const known = patch.title || sessionTitleCache.get(sessionId);
+      if (known) state.members[sessionId].title = known;
+    }
     saveStateSoon();
     return state.members[sessionId];
   }
@@ -1037,7 +1041,7 @@ export function apply(ctx, config = {}) {
         const members = Object.entries(state.members).map(([sessionId, member]) => ({
           sessionId,
           alias: member.alias || Object.entries(state.aliases).find(([, id]) => id === sessionId)?.[0],
-          title: byId.get(sessionId)?.title,
+          title: byId.get(sessionId)?.title || sessionTitleCache.get(sessionId) || member.title,
           running: byId.get(sessionId)?.running === true,
           alive: byId.has(sessionId),
         }));
@@ -1704,6 +1708,21 @@ export function apply(ctx, config = {}) {
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 200)
       .map((task) => ({ ...task, fromLabel: labelForSnapshot(task.from, byId), toLabel: labelForSnapshot(task.to, byId) }));
+    for (const [sessionId] of Object.entries(state.members)) {
+      if (byId.get(sessionId)?.title) continue;
+      try {
+        const snapshot = await ctx.sessionQuery.readTitle(sessionId);
+        const title = typeof snapshot === 'string' ? snapshot
+          : (snapshot && typeof snapshot.title === 'string' ? snapshot.title : undefined);
+        if (title) {
+          byId.set(sessionId, { ...(byId.get(sessionId) || { sessionId, cwd: '', running: false, agentAvailable: false }), title });
+          sessionTitleCache.set(sessionId, title);
+          if (state.members[sessionId] && !state.members[sessionId].title) state.members[sessionId].title = title;
+        }
+      } catch (error) {
+        ctx.logger?.info?.(`session-hub: member title unavailable: ${safeErrorText(error)}`);
+      }
+    }
     const involved = scoped ? new Set([scoped]) : undefined;
     if (involved) {
       for (const task of scopedTasks) { involved.add(task.from); involved.add(task.to); }
@@ -1716,7 +1735,7 @@ export function apply(ctx, config = {}) {
       .map(([sessionId, member]) => ({
         sessionId,
         alias: member.alias || Object.entries(state.aliases).find(([, id]) => id === sessionId)?.[0],
-        title: byId.get(sessionId)?.title,
+        title: byId.get(sessionId)?.title || sessionTitleCache.get(sessionId) || member.title,
         running: byId.get(sessionId)?.running === true,
         alive: byId.has(sessionId),
       }));
@@ -1918,6 +1937,7 @@ tick();setInterval(tick,2000);
 
   ctx.logger?.info?.('session-hub: loaded (cross-session messaging + persistent task board + web board + standalone board origin)');
 }
+
 
 
 
