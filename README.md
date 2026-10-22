@@ -1,10 +1,10 @@
-# dsh-session-hub
+# dsh-crosssession
 
 给 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) 的**跨会话协作插件**：持久会话团队、任务派发与排序队列、审批门、会话级任务板，以及输入框 `@` 提及。
 
 > 让多个持久会话像团队成员一样互相派活、汇报进度，人和 agent 都能在右侧栏看到任务状态。
 
-- 包名：`dsh-session-hub` · 版本：`0.1.0` · License：MIT
+- 包名：`dsh-crosssession` · 版本：`0.1.0` · License：MIT
 - 运行位置：DSH Host 插件（`index.js`）+ Web Client 插件（`client.js`）+ 独立看板页面（`board.html`）
 
 ## 功能
@@ -29,10 +29,10 @@
 ### 从插件市场（发布后）
 
 ```bash
-dsh plugin install dsh-session-hub
+dsh plugin install dsh-crosssession
 ```
 
-或在 DSH 的插件市场中搜索 `dsh-session-hub` 安装，然后在配置里启用。
+或在 DSH 的插件市场中搜索 `dsh-crosssession` 安装，然后在配置里启用。
 
 ### 本地开发加载（file://）
 
@@ -41,7 +41,7 @@ dsh plugin install dsh-session-hub
 ```yaml
 - insert:
     - id: session-hub
-      name: 'file:///absolute/path/to/dsh-session-hub/index.js'
+      name: 'file:///absolute/path/to/dsh-crosssession/index.js'
       config:
         quietMode: true
         approvalTimeoutSeconds: 300

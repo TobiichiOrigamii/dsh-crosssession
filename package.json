@@ -1,5 +1,5 @@
 {
-  "name": "dsh-session-hub",
+  "name": "dsh-crosssession",
   "version": "0.1.0",
   "description": "Cross-session / cross-workspace messaging, persistent session team, approval gates and a per-session task board for DeepSeek Harness (DSH).",
   "type": "module",
@@ -41,11 +41,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/TobiichiOrigamii/dsh-session-hub.git"
+    "url": "https://github.com/TobiichiOrigamii/dsh-crosssession.git"
   },
-  "homepage": "https://github.com/TobiichiOrigamii/dsh-session-hub#readme",
+  "homepage": "https://github.com/TobiichiOrigamii/dsh-crosssession#readme",
   "bugs": {
-    "url": "https://github.com/TobiichiOrigamii/dsh-session-hub/issues"
+    "url": "https://github.com/TobiichiOrigamii/dsh-crosssession/issues"
   },
   "publishConfig": {
     "access": "public"

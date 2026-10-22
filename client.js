@@ -1,6 +1,6 @@
 /* Session Hub native client plugin: a real right-sidebar tab type for this session's board. */
 window.__ModuleLoader__.load({
-  id: 'dsh-session-hub',
+  id: 'dsh-crosssession',
   factory: (require) => {
     var module = { exports: {} };
     var exports = module.exports;
@@ -9,11 +9,11 @@ window.__ModuleLoader__.load({
     const react = require('react');
     const h = react.createElement;
 
-    const TAB_ID = 'dsh-session-hub/board';
+    const TAB_ID = 'dsh-crosssession/board';
     const TAB_KIND = 'sessionHubBoard';
     const PANEL_CONFIG_PATH = '/session-hub/panel-config.json';
     const MENTIONS_PATH = '/session-hub/mentions.json';
-    const OPEN_ONCE_KEY = 'dsh-session-hub.right-sidebar-opened-v3';
+    const OPEN_ONCE_KEY = 'dsh-crosssession.right-sidebar-opened-v3';
 
     /** Cached member names for the `@` mention source (alias + title). */
     const mentions = { members: [], aliases: [] };
