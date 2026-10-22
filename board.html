@@ -400,7 +400,8 @@ section { margin-top: 6px; }
     host.innerHTML = members.map(function (m) {
       var st = m.running ? 'running' : (m.alive ? 'idle' : '');
       // 成员显示“对话的名字”（会话标题）；没有标题才用别名兜底
-      var name = m.title || (m.alias ? '@' + m.alias : '未命名会话');
+      var cleanTitle = String(m.title || '').replace(/^@[A-Za-z0-9._-]+\s*/, '');
+      var name = cleanTitle || (m.alias ? '@' + m.alias : '未命名会话');
       var alias = m.alias && m.title ? '<span class="alias">@' + esc(m.alias) + '</span>' : '';
       return '<span class="chip"><span class="st ' + st + '"></span><span>' + esc(name) + '</span>' + alias + '</span>';
     }).join('');
@@ -589,3 +590,4 @@ section { margin-top: 6px; }
 </script>
 </body>
 </html>
+

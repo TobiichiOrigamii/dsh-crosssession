@@ -179,6 +179,16 @@ export function apply(ctx, config = {}) {
     timer.unref?.();
     return () => clearInterval(timer);
   }, 'dsh-crosssession.maintenance');
+  // One-shot startup sync: aliases bound in a previous run get their @alias title prefix back.
+  ctx.effect(() => {
+    const timer = setTimeout(() => {
+      for (const [alias, sessionId] of Object.entries(state.aliases).slice(0, 20)) {
+        void syncAliasTitle(sessionId, alias);
+      }
+    }, 4000);
+    timer.unref?.();
+    return () => clearTimeout(timer);
+  }, 'dsh-crosssession.alias-titles');
 
   function nextSeq() {
     state.seq += 1;
@@ -197,6 +207,37 @@ export function apply(ctx, config = {}) {
     return typeof messageId === 'string' ? messageId.slice(0, 8) : String(messageId);
   }
 
+  async function readSessionTitleSafe(sessionId) {
+    try {
+      const snapshot = await Promise.race([
+        ctx.sessionQuery.readTitle(sessionId),
+        new Promise((resolve) => { setTimeout(() => resolve(undefined), 1200); }),
+      ]);
+      return typeof snapshot === 'string' ? snapshot
+        : (snapshot && typeof snapshot.title === 'string' ? snapshot.title : undefined);
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** Prefix the visible session title with its @alias so the sidebar shows it. */
+  async function syncAliasTitle(sessionId, alias) {
+    try {
+      const member = state.members[sessionId] || {};
+      let baseTitle = member.baseTitle;
+      if (!baseTitle) {
+        const current = await readSessionTitleSafe(sessionId);
+        baseTitle = String(current || '').replace(/^@[A-Za-z0-9._-]+\s+/, '').trim();
+      }
+      if (!baseTitle) return;
+      if (!state.members[sessionId]?.baseTitle) memberEntry(sessionId, { baseTitle });
+      const title = alias ? `@${alias} ${baseTitle}` : baseTitle;
+      await ctx.sessionController.rename({ sessionId, title });
+      sessionTitleCache.set(sessionId, title);
+    } catch (error) {
+      ctx.logger?.warn?.(`dsh-crosssession: could not sync alias title for ${sessionId}: ${safeErrorText(error)}`);
+    }
+  }
   function sessionLabel(sessionId) {
     const alias = Object.entries(state.aliases).find(([, id]) => id === sessionId)?.[0];
     const member = state.members[sessionId];
@@ -654,7 +695,9 @@ export function apply(ctx, config = {}) {
         lines.push('');
         lines.push(`Sessions (${sessions.length}):`);
         for (const s of sessions) {
-          lines.push(`- ${s.alias ? `@${s.alias}` : ''}${s.title || '(untitled)'} | ${s.sessionId} | ${s.running ? 'running' : 'idle'} | ${s.cwd || '-'}`);
+          const titleText = s.title || '(untitled)';
+          const aliasPrefix = s.alias && !titleText.startsWith('@' + s.alias) ? '@' + s.alias : '';
+          lines.push(`- ${aliasPrefix}${titleText} | ${s.sessionId} | ${s.running ? 'running' : 'idle'} | ${s.cwd || '-'}`);
         }
         return { text: lines.join('\n'), workspaces, sessions };
       },
@@ -1089,6 +1132,7 @@ export function apply(ctx, config = {}) {
           if (alias) delete state.aliases[alias];
           if (state.members[resolved.sessionId]) delete state.members[resolved.sessionId].alias;
           saveStateSoon();
+          await syncAliasTitle(resolved.sessionId, undefined);
           return { text: `alias cleared for ${resolved.sessionId}`, sessionId: resolved.sessionId };
         }
         const alias = assertText(String(args.alias ?? ''), 'alias');
@@ -1098,6 +1142,7 @@ export function apply(ctx, config = {}) {
         state.aliases[alias] = resolved.sessionId;
         memberEntry(resolved.sessionId, { alias });
         saveStateNow();
+        await syncAliasTitle(resolved.sessionId, alias);
         return { text: `@${alias} → ${resolved.sessionId}`, sessionId: resolved.sessionId, alias };
       },
     },
@@ -1966,6 +2011,10 @@ tick();setInterval(tick,2000);
 
   ctx.logger?.info?.('dsh-crosssession: loaded (cross-session messaging + persistent task board + web board + standalone board origin)');
 }
+
+
+
+
 
 
 

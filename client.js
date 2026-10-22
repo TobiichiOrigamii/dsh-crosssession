@@ -225,7 +225,6 @@ window.__ModuleLoader__.load({
       BoardTab.ctx = ctx;
 
       registerMentionSource(ctx);
-      registerSessionAliasSlot(ctx);
       ctx.effect(() => {
         void refreshMentions();
         const timer = window.setInterval(() => { void refreshMentions(); }, 30_000);
@@ -290,3 +289,4 @@ window.__ModuleLoader__.load({
     return module.exports;
   },
 });
+
