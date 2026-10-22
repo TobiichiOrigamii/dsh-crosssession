@@ -41,13 +41,14 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-github-name/dsh-session-hub.git"
+    "url": "https://github.com/TobiichiOrigamii/dsh-session-hub.git"
   },
-  "homepage": "https://github.com/your-github-name/dsh-session-hub#readme",
+  "homepage": "https://github.com/TobiichiOrigamii/dsh-session-hub#readme",
   "bugs": {
-    "url": "https://github.com/your-github-name/dsh-session-hub/issues"
+    "url": "https://github.com/TobiichiOrigamii/dsh-session-hub/issues"
   },
   "publishConfig": {
     "access": "public"
   }
 }
+
